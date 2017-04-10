@@ -22,6 +22,7 @@ import (
 	"syscall"
 
 	"github.com/dotqin/blf/log"
+	"github.com/fatih/color"
 	"github.com/op/go-logging"
 )
 
@@ -45,6 +46,14 @@ The commands are:
 
 Use "blf help [command]" for more information about a command.
 `
+
+	var logo = `
+   ____    _       _____
+  | __ )  | |     |  ___|
+  |  _ \  | |     | |_
+  | |_) | | |___  |  _|
+  |____/  |_____| |_|
+	`
 
 	if len(os.Args) > 1 {
 		for _, v := range os.Args[1:] {
@@ -113,6 +122,7 @@ Use "blf help [command]" for more information about a command.
 
 	RunCmd(AppPath)
 
+	color.Green(logo)
 	log.Notice("Running ...")
 
 	wait()
