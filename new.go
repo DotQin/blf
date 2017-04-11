@@ -71,28 +71,32 @@ sessionon = true
 func createTestController(apppath string) {
 	var content = `package controllers
 
-import "github.com/dotqin/blfgo"
+import (
+	"fmt"
+
+	"github.com/dotqin/blfgo"
+)
 
 type TestController struct {
 	blfgo.Controller
 }
 
 // @router(url=/, method=get, flag=100, csrf=false)
-func (c *TestController) Home() (content string) {
-	content = "Welcome to Blfgo !"
-	return content
+func (c *TestController) Home(name string) (r string, t int) {
+	r = fmt.Sprintf("Hello %s, Welcome to Blfgo !", name)
+	return r, t
 }
 
-// @router(url=/test1, method=get, flag=101, csrf=false, test=1, response_body=true)
-func (c *TestController) TestA() (content string) {
-	content = "from test11"
-	return content
+// @router(url=/test1, method=get, flag=101, csrf=false, test=1)
+func (c *TestController) TestA() (r string, t int) {
+	r = "From TestA"
+	return r, t
 }
 
 // @router(url=/test2, method=post, flag=102, csrf=true)
-func (c *TestController) TestB() (content string) {
-	content = "from test22"
-	return content
+func (c *TestController) TestB() (r string, t int) {
+	r = "From TestB"
+	return r, t
 }
 `
 	createFile(apppath+"/controllers/test_controller.go", content)
@@ -143,4 +147,5 @@ func createFile(path, content string) {
 	Check(err)
 	_, err = io.WriteString(f, content)
 	Check(err)
+	f.Close()
 }

@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 )
 
 func WriteRouter(path, appname string) {
@@ -38,38 +39,104 @@ func write(f *os.File, appname string) {
 	var content = `package routers
 
 import (
-	"%s/controllers"
+	"net/http"
+	"strings"%s
+
+	"%s/controllers"%s
 )
 
-func (r *Router) Route(url string) string {
+func (r *Router) Route(req *http.Request) (re string, tp int) {
 
-	var content string
+	var url = strings.SplitN(req.RequestURI, "?", 2)[0]
 
-	switch url {%s
+	switch {%s
 	}
-	return content
-}` // TODO switch url and method
+	return re, tp
+}`
+
+	var useStrconv, useReflect bool
+	var importModels string
 
 	var caseContent string
 	for _, v := range Routers {
-		var c string
+		var ctx string
 		m := "controllers." + v.ControllerName
 		if v.Receiver != "" {
 			m = "c." + v.ControllerName
-			c = fmt.Sprintf(`
+			ctx = fmt.Sprintf(`
 		c := &controllers.%s{}`, v.Receiver)
 		}
+
+		var argSatatements, args string
+
+		ln := len(v.ControllerArgTypes)
+		if ln > 0 {
+			for i, n := range v.ControllerArgNames {
+				switch v.ControllerArgTypes[i] {
+				case "string":
+					argSatatements += fmt.Sprintf(`
+		%s := strings.Join(req.Form["%s"], "")`, n, n)
+				case "[]string":
+					argSatatements += fmt.Sprintf(`
+		%s := req.Form["%s"]`, n, n)
+				case "int":
+					useStrconv = true
+					argSatatements += fmt.Sprintf(`
+		%s, _ := strconv.Atoi(strings.Join(req.Form["%s"], ""))`, n, n)
+				case "interface{}":
+					argSatatements += fmt.Sprintf(`
+		%s := req.Form["%s"]`, n, n)
+				default:
+					df := fmt.Sprintf(`
+		var %s %s`, n, v.ControllerArgTypes[i])
+					if importModels == "" && strings.Index(v.ControllerArgTypes[i], "models.") > -1 {
+						useReflect = true
+						importModels = fmt.Sprintf(`
+	"github.com/dotqin/blfgo"
+	"%s/models"`, appname)
+						df = fmt.Sprintf(`
+		var %s %s
+		if reflect.ValueOf(%s).Kind() == reflect.Struct {
+			%s = %s{}
+			blfgo.ParseForm(req.Form, &%s)
+		}`, n, v.ControllerArgTypes[i], n, n, v.ControllerArgTypes[i], n)
+					}
+					argSatatements += df
+				}
+				args += n
+				if i != ln-1 {
+					args += ", "
+				}
+			}
+			ctx = fmt.Sprintf(`
+		req.ParseForm()%s%s`, argSatatements, ctx)
+		}
+
 		caseContent += fmt.Sprintf(`
-    case "%s":%s
-        content = %s()
-`,
-			v.Url, c, m)
+    case req.Method == "%s" && url == "%s":%s
+        re, tp = %s(%s)`, strings.ToUpper(v.Method), v.Url, ctx, m, args)
 	}
 
 	if PackPre != "" {
 		appname = PackPre + "/" + appname
+		if importModels != "" {
+			importModels = fmt.Sprintf(`
+	"github.com/dotqin/blfgo"
+	"%s/models"`, appname)
+		}
 	}
 
-	_, err := io.WriteString(f, fmt.Sprintf(content, appname, caseContent))
+	var usePacks string
+	if useStrconv {
+		usePacks += `
+	strconv`
+	}
+	if useReflect {
+		usePacks += `
+	reflect`
+	}
+
+	_, err := io.WriteString(f, fmt.Sprintf(content, usePacks, appname, importModels, caseContent))
+	f.Close()
 	Check(err)
 }

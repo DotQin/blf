@@ -28,6 +28,7 @@ type Config struct {
 	strcet string
 }
 
+// InitConfig from http://studygolang.com/articles/4300
 func (c *Config) InitConfig(path string) {
 	c.Cmap = make(map[string]string)
 

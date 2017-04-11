@@ -23,14 +23,17 @@ import (
 )
 
 type Router struct {
-	Url            string
-	Method         string
-	Flag           int
-	Csrf           bool
-	Receiver       string
-	ControllerName string
-	ResponseBody   bool
-	CustomArgs     map[string]interface{}
+	Url                   string
+	Method                string
+	Flag                  int
+	Csrf                  bool
+	Receiver              string
+	ControllerName        string
+	ControllerArgNames    []string
+	ControllerArgTypes    []string
+	ControllerResultNames []string
+	ControllerResultTypes []string
+	CustomArgs            map[string]interface{}
 }
 
 var Routers map[string]Router = make(map[string]Router)
@@ -94,11 +97,17 @@ func parse(code string) {
 				bar := TrimLeft(foo[0], "func")
 				bar = TrimRight(bar, "{")
 				bar = strings.TrimSpace(bar)
+				var argstr string
 				if len(bar) > 2 {
 					var fnName string
 					getFuName := func(str string) string {
 						array := strings.SplitN(strings.TrimSpace(str), "(", 2)
 						if len(array) == 2 {
+							argandcb := strings.SplitN(array[1], ")", 2)
+							argstr = strings.TrimSpace(argandcb[0])
+							if len(argandcb) == 2 {
+								bar = strings.TrimSpace(argandcb[1])
+							}
 							return strings.TrimSpace(array[0])
 						}
 						return ""
@@ -122,6 +131,26 @@ func parse(code string) {
 						r.ControllerName = fnName
 					} else {
 						return
+					}
+					if argstr != "" {
+						r.ControllerArgNames = make([]string, 0, 10)
+						r.ControllerArgTypes = make([]string, 0, 10)
+						parseArg(argstr, &r, 0)
+					}
+					bar = TrimRight(TrimLeft(bar, "("), ")")
+					if bar != "" {
+						r.ControllerResultNames = make([]string, 0, 2)
+						r.ControllerResultTypes = make([]string, 0, 2)
+						parseArg(bar, &r, 1)
+					}
+					checkResutTypes := false
+					if len(r.ControllerResultTypes) == 2 {
+						if r.ControllerResultTypes[0] == "string" && r.ControllerResultTypes[1] == "int" {
+							checkResutTypes = true
+						}
+					}
+					if !checkResutTypes {
+						panic("ControllerResultTypes Error , must string and int from -> " + fnName)
 					}
 				} else {
 					return
@@ -159,15 +188,6 @@ func parse(code string) {
 						default:
 							panic("Csrf must be true or false")
 						}
-					case "response_body":
-						switch val {
-						case "true":
-							r.ResponseBody = true
-						case "false":
-							r.ResponseBody = false
-						default:
-							panic("ResponseBody must be true or false")
-						}
 					default:
 						r.CustomArgs[key] = val
 					}
@@ -180,5 +200,51 @@ func parse(code string) {
 		} else {
 			panic("Url Repeat : " + r.Url)
 		}
+	}
+}
+
+func parseArg(str string, r *Router, tp int) {
+	str = strings.TrimSpace(str)
+	args := strings.SplitN(str, " ", 2)
+	if len(args) == 2 {
+		var argname, argtype string
+
+		pubArg := func() {
+			if strings.Index(argtype, "...") > -1 {
+				argtype = argtype[3:]
+				argtype = "[]" + argtype
+			}
+			if tp == 0 {
+				r.ControllerArgNames = append(r.ControllerArgNames, argname)
+				r.ControllerArgTypes = append(r.ControllerArgTypes, argtype)
+			} else {
+				r.ControllerResultNames = append(r.ControllerResultNames, argname)
+				r.ControllerResultTypes = append(r.ControllerResultTypes, argtype)
+			}
+		}
+
+		if i := strings.Index(args[0], ","); i > -1 {
+			argname = strings.TrimSpace(args[0][:i])
+			argtype = ""
+			pubArg()
+			parseArg(args[1], r, tp)
+		} else {
+			argname = strings.TrimSpace(args[0])
+			args = strings.SplitN(args[1], ",", 2)
+			argtype = strings.TrimSpace(args[0])
+			pubArg()
+			if tp == 0 {
+				for i, v := range r.ControllerArgTypes {
+					if v == "" {
+						r.ControllerArgTypes[i] = argtype
+					}
+				}
+			}
+			if len(args) == 2 {
+				parseArg(args[1], r, tp)
+			}
+		}
+	} else {
+		panic("Parse Error : " + str)
 	}
 }

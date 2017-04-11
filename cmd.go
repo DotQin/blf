@@ -25,6 +25,12 @@ var cmd *exec.Cmd
 
 func RunCmd(path string) {
 
+	cmd = exec.Command(GOROOT+"/bin/go", "build", path+"/main.go")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	go cmd.Run()
+
 	cmd = exec.Command(GOROOT+"/bin/go", "run", path+"/main.go")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
