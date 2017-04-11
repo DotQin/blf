@@ -118,7 +118,7 @@ Use "blf help [command]" for more information about a command.
 
 	Scan(AppPath, 0)
 
-	WriteRouter(AppPath, AppName, PackPre)
+	WriteRouter(AppPath, AppName)
 
 	RunCmd(AppPath)
 

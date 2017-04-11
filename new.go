@@ -121,7 +121,7 @@ import (
 	"net/http"
 
 	"github.com/dotqin/blfgo"
-	_ "%s/%s/routers"
+	_ "%s/routers"
 )
 
 func main() {
@@ -130,7 +130,10 @@ func main() {
 		log.Fatal("Blfgo :", err)
 	}
 }`
-	createFile(apppath+"/main.go", fmt.Sprintf(content, PackPre, appname))
+	if PackPre != "" {
+		appname = PackPre + "/" + appname
+	}
+	createFile(apppath+"/main.go", fmt.Sprintf(content, appname))
 }
 
 func createFile(path, content string) {

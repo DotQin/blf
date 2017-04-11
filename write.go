@@ -20,7 +20,7 @@ import (
 	"os"
 )
 
-func WriteRouter(path, appname, packpre string) {
+func WriteRouter(path, appname string) {
 	path = path + "/routers/commentsRouter_controllers.go"
 
 	var f *os.File
@@ -31,14 +31,14 @@ func WriteRouter(path, appname, packpre string) {
 		f, err = os.Create(path)
 	}
 	Check(err)
-	write(f, appname, packpre)
+	write(f, appname)
 }
 
-func write(f *os.File, appname, packpre string) {
+func write(f *os.File, appname string) {
 	var content = `package routers
 
 import (
-	"%s/%s/controllers"
+	"%s/controllers"
 )
 
 func (r *Router) Route(url string) string {
@@ -66,6 +66,10 @@ func (r *Router) Route(url string) string {
 			v.Url, c, m)
 	}
 
-	_, err := io.WriteString(f, fmt.Sprintf(content, packpre, appname, caseContent))
+	if PackPre != "" {
+		appname = PackPre + "/" + appname
+	}
+
+	_, err := io.WriteString(f, fmt.Sprintf(content, appname, caseContent))
 	Check(err)
 }
