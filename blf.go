@@ -107,7 +107,7 @@ Use "blf help [command]" for more information about a command.
 
 	PackPre = conf.Read("default", "packpre")
 	if PackPre == "" {
-		PackPre = TrimRight(TrimLeft(AppPath, GOPATH+"/src/"), "/"+AppName)
+		PackPre = TrimLeft(TrimRight(TrimLeft(AppPath, GOPATH+"/src"), "/"+AppName), "/")
 	}
 
 	log.Debug("AppName\t:", AppName)

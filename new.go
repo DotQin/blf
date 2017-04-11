@@ -64,7 +64,7 @@ sessionon = true
 # 包前缀
 # packpre = %s
 `
-	PackPre = TrimLeft(path, GOPATH+"/src/")
+	PackPre = TrimLeft(TrimLeft(path, GOPATH+"/src"), "/")
 	createFile(path+"/"+appname+"/conf/app.conf", fmt.Sprintf(content, appname, PackPre))
 }
 
