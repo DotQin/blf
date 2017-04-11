@@ -19,7 +19,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"zncnet.com/bak/blf/log"
+	"github.com/dotqin/blf/log"
 )
 
 // getCurrentDirectory 获取当前工作路径
