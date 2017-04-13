@@ -80,9 +80,6 @@ Use "blf help [command]" for more information about a command.
 						switch v {
 						case "-nolog":
 							logging.SetLevel(0, "blf")
-						default:
-							AppPath += "/" + v
-							AppPath = TrimRight(AppPath, "/")
 						}
 					}
 				}

@@ -36,6 +36,7 @@ func NewApp(path, appname string) {
 			os.Mkdir(apppath+"/routers", 0777)
 			os.Mkdir(apppath+"/static", 0777)
 			os.Mkdir(apppath+"/views", 0777)
+			os.Mkdir(apppath+"/models", 0777)
 			createAppConf(path, appname)
 			createTestController(apppath)
 			createRouter(apppath)

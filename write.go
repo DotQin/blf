@@ -42,16 +42,20 @@ import (
 	"net/http"
 	"strings"%s
 
+	"github.com/gorilla/sessions"
+	"github.com/dotqin/blfgo"
 	"%s/controllers"%s
 )
 
-func (r *Router) Route(req *http.Request) (re string, tp int) {
+func (r *Router) Route(_w http.ResponseWriter, _req *http.Request, _s *sessions.Session) (re string, tp int, data map[string]interface{}) {
 
-	var url = strings.SplitN(req.RequestURI, "?", 2)[0]
+	var url = strings.SplitN(_req.RequestURI, "?", 2)[0]
 
 	switch {%s
+	default:
+		return re, 404, nil
 	}
-	return re, tp
+	return re, tp, data
 }`
 
 	var useStrconv, useReflect bool
@@ -64,7 +68,11 @@ func (r *Router) Route(req *http.Request) (re string, tp int) {
 		if v.Receiver != "" {
 			m = "c." + v.ControllerName
 			ctx = fmt.Sprintf(`
-		c := &controllers.%s{}`, v.Receiver)
+		c := &controllers.%s{blfgo.Controller{"%s", "%s", %d, %t, %s, _w, _req, _s, nil}}
+		if !blfgo.Intercept(&c.Controller) {
+			return re, 9, nil
+		}
+		c.Prepare()`, v.Receiver, v.Url, strings.ToUpper(v.Method), v.Flag, v.Csrf, v.JoinCustomArgs())
 		}
 
 		var argSatatements, args string
@@ -75,30 +83,29 @@ func (r *Router) Route(req *http.Request) (re string, tp int) {
 				switch v.ControllerArgTypes[i] {
 				case "string":
 					argSatatements += fmt.Sprintf(`
-		%s := strings.Join(req.Form["%s"], "")`, n, n)
+		%s := strings.Join(_req.Form["%s"], "")`, n, n)
 				case "[]string":
 					argSatatements += fmt.Sprintf(`
-		%s := req.Form["%s"]`, n, n)
+		%s := _req.Form["%s"]`, n, n)
 				case "int":
 					useStrconv = true
 					argSatatements += fmt.Sprintf(`
-		%s, _ := strconv.Atoi(strings.Join(req.Form["%s"], ""))`, n, n)
+		%s, _ := strconv.Atoi(strings.Join(_req.Form["%s"], ""))`, n, n)
 				case "interface{}":
 					argSatatements += fmt.Sprintf(`
-		%s := req.Form["%s"]`, n, n)
+		%s := _req.Form["%s"]`, n, n)
 				default:
 					df := fmt.Sprintf(`
 		var %s %s`, n, v.ControllerArgTypes[i])
 					if importModels == "" && strings.Index(v.ControllerArgTypes[i], "models.") > -1 {
 						useReflect = true
 						importModels = fmt.Sprintf(`
-	"github.com/dotqin/blfgo"
 	"%s/models"`, appname)
 						df = fmt.Sprintf(`
 		var %s %s
 		if reflect.ValueOf(%s).Kind() == reflect.Struct {
 			%s = %s{}
-			blfgo.ParseForm(req.Form, &%s)
+			blfgo.ParseForm(_req.Form, &%s)
 		}`, n, v.ControllerArgTypes[i], n, n, v.ControllerArgTypes[i], n)
 					}
 					argSatatements += df
@@ -109,19 +116,19 @@ func (r *Router) Route(req *http.Request) (re string, tp int) {
 				}
 			}
 			ctx = fmt.Sprintf(`
-		req.ParseForm()%s%s`, argSatatements, ctx)
+		_req.ParseForm()%s%s`, ctx, argSatatements)
 		}
 
 		caseContent += fmt.Sprintf(`
-    case req.Method == "%s" && url == "%s":%s
-        re, tp = %s(%s)`, strings.ToUpper(v.Method), v.Url, ctx, m, args)
+    case _req.Method == "%s" && url == "%s":%s
+        re, tp = %s(%s)
+		data = c.Data`, strings.ToUpper(v.Method), v.Url, ctx, m, args)
 	}
 
 	if PackPre != "" {
 		appname = PackPre + "/" + appname
 		if importModels != "" {
 			importModels = fmt.Sprintf(`
-	"github.com/dotqin/blfgo"
 	"%s/models"`, appname)
 		}
 	}
@@ -129,11 +136,11 @@ func (r *Router) Route(req *http.Request) (re string, tp int) {
 	var usePacks string
 	if useStrconv {
 		usePacks += `
-	strconv`
+	"strconv"`
 	}
 	if useReflect {
 		usePacks += `
-	reflect`
+	"reflect"`
 	}
 
 	_, err := io.WriteString(f, fmt.Sprintf(content, usePacks, appname, importModels, caseContent))

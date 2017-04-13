@@ -15,6 +15,7 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"strconv"
 	"strings"
@@ -33,7 +34,19 @@ type Router struct {
 	ControllerArgTypes    []string
 	ControllerResultNames []string
 	ControllerResultTypes []string
-	CustomArgs            map[string]interface{}
+	CustomArgs            map[string]string
+}
+
+func (r *Router) JoinCustomArgs() (re string) {
+
+	f := "map[string]string{%s}"
+
+	for k, v := range r.CustomArgs {
+		re += fmt.Sprintf(`"%s":"%s", `, k, v)
+	}
+	re = TrimRight(re, ", ")
+
+	return fmt.Sprintf(f, re)
 }
 
 var Routers map[string]Router = make(map[string]Router)
@@ -89,7 +102,7 @@ func parse(code string) {
 	array := strings.SplitN(code, ")", 2)
 	if len(array) == 2 {
 		r := Router{}
-		r.CustomArgs = make(map[string]interface{})
+		r.CustomArgs = make(map[string]string)
 		fn := strings.TrimSpace(array[1])
 		if strings.Index(fn, "func") == 0 {
 			foo := strings.SplitN(fn, "\n", 2)
